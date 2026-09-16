@@ -1,0 +1,31 @@
+{
+  "SchemaVersion": 2,
+  "ArtifactName": "selftest:vuln",
+  "Results": [
+    {
+      "Target": "python:3.8-slim (debian 10.13)",
+      "Class": "os-pkgs",
+      "Type": "debian",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2021-44228",
+          "PkgName": "log4j",
+          "Severity": "CRITICAL",
+          "FixedVersion": "2.15.0-1"
+        },
+        {
+          "VulnerabilityID": "CVE-2022-1292",
+          "PkgName": "openssl",
+          "Severity": "HIGH",
+          "FixedVersion": "1.1.1n-0+deb10u3"
+        },
+        {
+          "VulnerabilityID": "CVE-2019-10906",
+          "PkgName": "jinja2",
+          "Severity": "HIGH",
+          "FixedVersion": "2.11.3"
+        }
+      ]
+    }
+  ]
+}

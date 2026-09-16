@@ -1,0 +1,93 @@
+name: nightly-rescan
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  IMAGE: ghcr.io/abdrahmentakrouni/secure-ci-pipeline
+
+jobs:
+  rescan:
+    name: re-scan the shipped image
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install pinned scanners
+        run: bash scripts/ci_install_tools.sh trivy grype
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull the shipped image
+        run: docker pull "$IMAGE:latest"
+
+      - name: Trivy re-scan
+        run: >
+          trivy image --quiet --scanners vuln --ignore-unfixed
+          --format json --output trivy.json "$IMAGE:latest"
+
+      - name: Grype re-scan
+        run: grype "$IMAGE:latest" --only-fixed -o json > grype.json
+
+      - name: Policy gate (report only)
+        run: >
+          python3 scripts/policy_gate.py --trivy trivy.json --grype grype.json
+          --policy policy/scan-policy.yml --image "shipped:latest"
+          --summary-file gate-summary.md --verdict-file verdict.txt || true
+
+      - name: Publish verdict to the run summary
+        run: cat gate-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Read verdict
+        id: verdict
+        run: echo "verdict=$(cat verdict.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Re-verify the shipped signature
+        run: |
+          DIGEST="$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:latest" | cut -d@ -f2)"
+          cosign verify "${IMAGE}@${DIGEST}" \
+            --certificate-identity-regexp \
+            '^https://github.com/abdrahmentakrouni/secure-ci-pipeline/.*' \
+            --certificate-oidc-issuer '^https://token.actions.githubusercontent.com$'
+
+      - name: Open an alert issue if the shipped image drifted
+        if: steps.verdict.outputs.verdict != 'PASS'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Nightly rescan: shipped image no longer meets policy"
+          BODY="$(cat gate-summary.md)"
+          NUM="$(gh issue list --search "$TITLE in:title state:open" --json number --jq '.[0].number' || true)"
+          if [ -n "$NUM" ]; then
+            gh issue comment "$NUM" --body "$BODY"
+          else
+            gh issue create --title "$TITLE" --body "$BODY"
+          fi
+
+      - name: Upload re-scan evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-rescan-reports
+          path: |
+            trivy.json
+            grype.json
+            gate-summary.md
+            verdict.txt
+          retention-days: 30

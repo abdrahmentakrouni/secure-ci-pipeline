@@ -1,0 +1,4 @@
+title = "secure-ci-pipeline gitleaks config"
+
+[extend]
+useDefault = true

@@ -1,0 +1,20 @@
+# Self-test policy: same rules, but CVE-2021-44228 is accepted with a
+# future expiry — the gate must PASS despite the critical finding.
+version: 0
+name: selftest-allowlist-active
+
+gate:
+  block:
+    - severity: CRITICAL
+      fixed: true
+      max_allowed: 0
+    - severity: HIGH
+      fixed: true
+      max_allowed: 5
+  warn:
+    - severity: MEDIUM
+  ignore_unfixed: true
+  allowlist:
+    - id: CVE-2021-44228
+      reason: "selftest: accepted for the fixture only"
+      expires: 2099-01-01

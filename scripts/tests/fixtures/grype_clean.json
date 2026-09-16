@@ -1,0 +1,9 @@
+{
+  "matches": [],
+  "source": {
+    "type": "image",
+    "target": {
+      "repository": "selftest/clean"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+# Self-test policy: the allowlist entry expired long ago — the gate must
+# start blocking the same CVE again.
+version: 0
+name: selftest-allowlist-expired
+
+gate:
+  block:
+    - severity: CRITICAL
+      fixed: true
+      max_allowed: 0
+    - severity: HIGH
+      fixed: true
+      max_allowed: 5
+  warn:
+    - severity: MEDIUM
+  ignore_unfixed: true
+  allowlist:
+    - id: CVE-2021-44228
+      reason: "selftest: expired acceptance must not suppress"
+      expires: 2000-01-01

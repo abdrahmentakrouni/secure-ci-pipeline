@@ -1,0 +1,36 @@
+# Policy as code: the single source of truth for the release gate.
+#
+# policy_gate.py evaluates every scanner report against these rules.
+# Changing this file is a code review, not a chat decision.
+
+version: 1
+name: release-gate-default
+
+gate:
+  # A rule matches a finding when the severity matches AND the CVE has a
+  # fix available (rules with fixed: false match any fix state).
+  # max_allowed sets the risk appetite: the build blocks when the number
+  # of matching findings exceeds it.
+  block:
+    - severity: CRITICAL
+      fixed: true
+      max_allowed: 0
+    - severity: HIGH
+      fixed: true
+      max_allowed: 5
+
+  # Findings that are reported in the summary but do not block the build.
+  warn:
+    - severity: MEDIUM
+
+  # Findings without an upstream fix are tracked, not fatal: the app
+  # cannot patch what the distro has not shipped yet.
+  ignore_unfixed: true
+
+  # Accepted risks. Every entry needs a written reason and an expiry
+  # date (YYYY-MM-DD). An expired entry stops suppressing and the CVE
+  # starts blocking again on the next run — no silent forever-ignores.
+  allowlist: []
+  #  - id: CVE-2024-21538
+  #    reason: "regex DoS in transitive dep, code path unreachable from app"
+  #    expires: 2026-12-31

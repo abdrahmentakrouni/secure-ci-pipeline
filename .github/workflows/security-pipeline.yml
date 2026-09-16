@@ -1,0 +1,189 @@
+name: security-pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/abdrahmentakrouni/secure-ci-pipeline
+
+jobs:
+  secrets-scan:
+    name: gitleaks — secret leak check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pinned gitleaks
+        run: bash scripts/ci_install_tools.sh gitleaks
+
+      - name: Scan git history for leaked secrets
+        run: >
+          gitleaks detect --source . --config .gitleaks.toml --redact --verbose
+          --log-opts="--all"
+
+  lint:
+    name: hadolint + shellcheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install pinned hadolint
+        run: bash scripts/ci_install_tools.sh hadolint
+
+      - name: Lint the release Dockerfile
+        run: hadolint app/Dockerfile
+
+      - name: Shellcheck helper scripts
+        run: shellcheck scripts/*.sh
+
+  gate-selftest:
+    name: policy gate self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Run fixture suite
+        run: bash scripts/test_policy_gate.sh
+
+  scan-gate:
+    name: scan + gate (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: app
+            expect: PASS
+          - target: app-vulnerable
+            expect: BLOCK
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install pinned scanners
+        run: bash scripts/ci_install_tools.sh trivy grype
+
+      - name: Build ${{ matrix.target }} locally
+        run: docker build -t "local/${{ matrix.target }}:ci" "${{ matrix.target }}"
+
+      - name: Trivy scan (report only)
+        run: >
+          trivy image --quiet --scanners vuln --ignore-unfixed
+          --format json --output trivy.json "local/${{ matrix.target }}:ci"
+
+      - name: Grype scan — second opinion (report only)
+        run: grype "local/${{ matrix.target }}:ci" --only-fixed -o json > grype.json
+
+      - name: Policy gate decides
+        run: >
+          python3 scripts/policy_gate.py --trivy trivy.json --grype grype.json
+          --policy policy/scan-policy.yml --image "${{ matrix.target }}:ci"
+          --expect ${{ matrix.expect }}
+
+      - name: Upload scan reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-reports-${{ matrix.target }}
+          path: |
+            trivy.json
+            grype.json
+          retention-days: 30
+
+  ship:
+    name: push + cosign sign + SBOM attest (app)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [secrets-scan, lint, gate-selftest, scan-gate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push the release image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: app
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:sha-${{ github.sha }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign the image (keyless, OIDC)
+        run: cosign sign --yes "${IMAGE}@${{ steps.build.outputs.digest }}"
+
+      - name: Install pinned syft
+        run: bash scripts/ci_install_tools.sh syft
+
+      - name: Generate SBOM (SPDX)
+        run: >
+          syft "${IMAGE}@${{ steps.build.outputs.digest }}" -o spdx-json
+          --file sbom.spdx.json
+
+      - name: Attest the SBOM into the registry
+        run: >
+          cosign attest --yes --predicate sbom.spdx.json --type spdxjson
+          "${IMAGE}@${{ steps.build.outputs.digest }}"
+
+      - name: Verify signature
+        run: >
+          cosign verify "${IMAGE}@${{ steps.build.outputs.digest }}"
+          --certificate-identity-regexp
+          '^https://github.com/abdrahmentakrouni/secure-ci-pipeline/\.github/workflows/security-pipeline\.yml@.*'
+          --certificate-oidc-issuer '^https://token.actions.githubusercontent.com$'
+
+      - name: Verify SBOM attestation
+        run: >
+          cosign verify-attestation --type spdxjson
+          "${IMAGE}@${{ steps.build.outputs.digest }}"
+          --certificate-identity-regexp
+          '^https://github.com/abdrahmentakrouni/secure-ci-pipeline/.*'
+          --certificate-oidc-issuer '^https://token.actions.githubusercontent.com$'
+
+      - name: Flip package visibility to public (best effort)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PATCH /user/packages/container/secure-ci-pipeline -f visibility=public --silent
+
+      - name: Upload signing evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: signing-evidence
+          path: sbom.spdx.json
+          retention-days: 30
