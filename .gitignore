@@ -1,0 +1,15 @@
+# local scan output
+reports/
+trivy.json
+grype.json
+sbom.spdx.json
+gate-summary.md
+verdict.txt
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# build output
+dist/
