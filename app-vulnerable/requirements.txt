@@ -1,0 +1,4 @@
+# Deliberately outdated: each of these has known CVEs the scanners will find.
+flask==0.12.2
+jinja2==2.10
+requests==2.19.1
