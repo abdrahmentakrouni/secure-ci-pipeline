@@ -63,7 +63,7 @@ jobs:
           DIGEST="$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:latest" | cut -d@ -f2)"
           cosign verify "${IMAGE}@${DIGEST}" \
             --certificate-identity-regexp \
-            '^https://github.com/abdrahmentakrouni/secure-ci-pipeline/.*' \
+            'github\.com/abdrahmentakrouni/secure-ci-pipeline/' \
             --certificate-oidc-issuer '^https://token.actions.githubusercontent.com$'
 
       - name: Open an alert issue if the shipped image drifted

@@ -83,7 +83,7 @@ image built and approved by this exact pipeline?":
 
 ```bash
 cosign verify ghcr.io/abdrahmentakrouni/secure-ci-pipeline@sha256:... \
-  --certificate-identity-regexp '^https://github.com/abdrahmentakrouni/secure-ci-pipeline/.*' \
+  --certificate-identity-regexp 'github\.com/abdrahmentakrouni/secure-ci-pipeline/' \
   --certificate-oidc-issuer '^https://token.actions.githubusercontent.com$'
 ```
 

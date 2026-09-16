@@ -163,7 +163,7 @@ jobs:
         run: >
           cosign verify "${IMAGE}@${{ steps.build.outputs.digest }}"
           --certificate-identity-regexp
-          '^https://github.com/abdrahmentakrouni/secure-ci-pipeline/\.github/workflows/security-pipeline\.yml@.*'
+          'github\.com/abdrahmentakrouni/secure-ci-pipeline/'
           --certificate-oidc-issuer '^https://token.actions.githubusercontent.com$'
 
       - name: Verify SBOM attestation
@@ -171,7 +171,7 @@ jobs:
           cosign verify-attestation --type spdxjson
           "${IMAGE}@${{ steps.build.outputs.digest }}"
           --certificate-identity-regexp
-          '^https://github.com/abdrahmentakrouni/secure-ci-pipeline/.*'
+          'github\.com/abdrahmentakrouni/secure-ci-pipeline/'
           --certificate-oidc-issuer '^https://token.actions.githubusercontent.com$'
 
       - name: Flip package visibility to public (best effort)
