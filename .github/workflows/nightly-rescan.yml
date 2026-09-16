@@ -64,7 +64,7 @@ jobs:
           cosign verify "${IMAGE}@${DIGEST}" \
             --certificate-identity-regexp \
             'github\.com/abdrahmentakrouni/secure-ci-pipeline/' \
-            --certificate-oidc-issuer '^https://token.actions.githubusercontent.com$'
+            --certificate-oidc-issuer-regexp 'token\.actions\.githubusercontent\.com'
 
       - name: Open an alert issue if the shipped image drifted
         if: steps.verdict.outputs.verdict != 'PASS'

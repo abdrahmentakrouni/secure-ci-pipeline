@@ -33,12 +33,12 @@ echo "[*] verifying keyless signature on $IMAGE"
 cosign verify "$IMAGE" \
   --certificate-identity-regexp \
   'github\.com/abdrahmentakrouni/secure-ci-pipeline/' \
-  --certificate-oidc-issuer '^https://token.actions.githubusercontent.com$'
+  --certificate-oidc-issuer-regexp 'token\.actions\.githubusercontent\.com'
 
 echo "[*] verifying SBOM attestation"
 cosign verify-attestation --type spdxjson "$IMAGE" \
   --certificate-identity-regexp \
   'github\.com/abdrahmentakrouni/secure-ci-pipeline/' \
-  --certificate-oidc-issuer '^https://token.actions.githubusercontent.com$'
+  --certificate-oidc-issuer-regexp 'token\.actions\.githubusercontent\.com'
 
 echo "[ok] signature + SBOM attestation verified for $IMAGE"
