@@ -10,14 +10,16 @@ gate:
   # A rule matches a finding when the severity matches AND the CVE has a
   # fix available (rules with fixed: false match any fix state).
   # max_allowed sets the risk appetite: the build blocks when the number
-  # of matching findings exceeds it.
+  # of matching findings exceeds it. HIGH appetite is set above the
+  # handful of distro-level findings a fresh alpine base normally ships
+  # with, so a sudden spike (new CVE batch, regression) still trips it.
   block:
     - severity: CRITICAL
       fixed: true
       max_allowed: 0
     - severity: HIGH
       fixed: true
-      max_allowed: 5
+      max_allowed: 10
 
   # Findings that are reported in the summary but do not block the build.
   warn:

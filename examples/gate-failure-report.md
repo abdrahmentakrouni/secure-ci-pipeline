@@ -26,9 +26,9 @@ policy: `release-gate-default` · scanners: trivy, grype · unique findings: 87
 |---|---|---|---|
 | CVE-2023-44487 | CRITICAL | yes | CRITICAL fixed (max_allowed=0, found=9) |
 | CVE-2024-45490 | CRITICAL | yes | CRITICAL fixed (max_allowed=0, found=9) |
-| CVE-2023-0286 | HIGH | yes | HIGH fixed (max_allowed=5, found=41) |
-| CVE-2019-10906 | HIGH | yes | HIGH fixed (max_allowed=5, found=41) |
-| CVE-2018-1000656 | HIGH | yes | HIGH fixed (max_allowed=5, found=41) |
+| CVE-2023-0286 | HIGH | yes | HIGH fixed (max_allowed=10, found=41) |
+| CVE-2019-10906 | HIGH | yes | HIGH fixed (max_allowed=10, found=41) |
+| CVE-2018-1000656 | HIGH | yes | HIGH fixed (max_allowed=10, found=41) |
 | … | | | … and 79 more |
 
 **verdict: BLOCK**
