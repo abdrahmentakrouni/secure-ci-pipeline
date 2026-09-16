@@ -5,7 +5,7 @@
 A supply-chain security gate for container builds. Every change to the
 repository passes through seven controls; a release image only reaches the
 registry when all of them hold. The same gate runs locally
-(`scripts/local_audit.sh`), so so what passes on a laptop is what passes in CI.
+(`scripts/local_audit.sh`), so what passes on a laptop is what passes in CI.
 
 ```
                        push / PR
